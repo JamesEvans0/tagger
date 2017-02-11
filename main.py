@@ -15,6 +15,7 @@ class Window(QtWidgets.QMainWindow):
         self.ui.setupUi(self)
         self.connectButtons()
         self.ui.viewer_single.viewport().installEventFilter(self)
+        self.ui.viewer_single.customContextMenuRequested.connect(self.taggingImageContextMenuOpen)
 
     def connectButtons(self):
         self.ui.button_addTag.clicked.connect(self.addTag)
@@ -90,6 +91,17 @@ class Window(QtWidgets.QMainWindow):
 
         return QtWidgets.QWidget.eventFilter(self, source, event)
 
+    def taggingImageContextMenuOpen(self, position):
+        if not self.ui.viewer_single.isImageNull():
+            menu = QtWidgets.QMenu()
+            action1 = menu.addAction('action1')
+            action2 = menu.addAction('action2')
+            action = menu.exec_(self.ui.viewer_single.mapToGlobal(position))
+            if action == action1:
+                scenePoint = self.ui.viewer_single.mapToScene(position)
+                print round(scenePoint.x()), round(scenePoint.y())
+            elif action == action2:
+                print 'action2'
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication(sys.argv)
