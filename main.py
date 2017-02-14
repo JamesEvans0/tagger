@@ -5,7 +5,7 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtWidgets import QDialog, QDialogButtonBox
 from gui.tagger import Ui_MainWindow
 from gui.tagDialog import TagDialog
-from tagContextMenu import TagContextMenu, Tag
+from gui.tagContextMenu import TagContextMenu, Tag
 
 
 # Main window and entry point for application
