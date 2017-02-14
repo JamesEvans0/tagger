@@ -5,6 +5,7 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtWidgets import QDialog, QDialogButtonBox
 from gui.tagger import Ui_MainWindow
 from gui.tagDialog import TagDialog
+from tagContextMenu import TagContextMenu, Tag
 
 
 # Main window and entry point for application
@@ -16,6 +17,9 @@ class Window(QtWidgets.QMainWindow):
         self.connectButtons()
         self.ui.viewer_single.viewport().installEventFilter(self)
         self.ui.viewer_single.customContextMenuRequested.connect(self.taggingImageContextMenuOpen)
+        # self.ui.list_tags.setSortingEnabled(True)
+        self.tag_list = []
+        self.tag_context_menu = TagContextMenu()
 
     def connectButtons(self):
         self.ui.button_addTag.clicked.connect(self.addTag)
@@ -31,6 +35,10 @@ class Window(QtWidgets.QMainWindow):
         dialog = TagDialog(title="Create tag")
         if dialog.exec_() == QDialog.Accepted:
             if len(dialog.name.text()) > 0:
+                # Add the tag name to context menu
+                self.tag_context_menu.addTagToContextMenu(dialog.name.text())
+
+                # Add tag name to list
                 self.ui.list_tags.addItem(dialog.name.text())
 
     def editTag(self):
@@ -38,12 +46,17 @@ class Window(QtWidgets.QMainWindow):
             item = self.ui.list_tags.currentItem()
             dialog = TagDialog(title="Edit tag")
             dialog.name.setText(item.text())
+
             if dialog.exec_() == QDialog.Accepted:
                 if len(dialog.name.text()) > 0:
+                    old_name = item.text()
+                    new_name = dialog.name.text()
+                    self.tag_context_menu.updateTagItem(old_name, new_name)
                     self.ui.list_tags.currentItem().setText(dialog.name.text())
 
     def removeTag(self):
         if self.ui.list_tags.currentRow() >= 0:
+            self.tag_context_menu.removeTagItem(self.ui.list_tags.currentItem().text())
             self.ui.list_tags.takeItem(self.ui.list_tags.currentRow())
 
     def toggleImageReviewed(self):
@@ -93,15 +106,12 @@ class Window(QtWidgets.QMainWindow):
 
     def taggingImageContextMenuOpen(self, position):
         if not self.ui.viewer_single.isImageNull():
-            menu = QtWidgets.QMenu()
-            action1 = menu.addAction('action1')
-            action2 = menu.addAction('action2')
-            action = menu.exec_(self.ui.viewer_single.mapToGlobal(position))
-            if action == action1:
-                scenePoint = self.ui.viewer_single.mapToScene(position)
-                print round(scenePoint.x()), round(scenePoint.y())
-            elif action == action2:
-                print 'action2'
+            action = self.tag_context_menu.exec_(self.ui.viewer_single.mapToGlobal(position))
+            for name, handle in self.tag_context_menu.getMenuItemList():
+                if handle == action:
+                    print name
+                    scenePoint = self.ui.viewer_single.mapToScene(position)
+                    print round(scenePoint.x()), round(scenePoint.y())
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication(sys.argv)
