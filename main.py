@@ -17,7 +17,8 @@ class Window(QtWidgets.QMainWindow):
         self.connectButtons()
         self.ui.viewer_single.viewport().installEventFilter(self)
         self.ui.viewer_single.customContextMenuRequested.connect(self.taggingImageContextMenuOpen)
-        # self.ui.list_tags.setSortingEnabled(True)
+        # self.openImage("download.jpg", self.ui.viewer_map)
+        # self.openImage("download.jpg", self.ui.viewer_single)
         self.tag_list = []
         self.tag_context_menu = TagContextMenu()
 
@@ -106,10 +107,10 @@ class Window(QtWidgets.QMainWindow):
 
     def taggingImageContextMenuOpen(self, position):
         if not self.ui.viewer_single.isImageNull():
-            action = self.tag_context_menu.exec_(self.ui.viewer_single.mapToGlobal(position))
-            for name, handle in self.tag_context_menu.getMenuItemList():
-                if handle == action:
-                    print name
+            current_action = self.tag_context_menu.exec_(self.ui.viewer_single.mapToGlobal(position))
+            for action in self.tag_context_menu.actions():
+                if current_action == action:
+                    print action.text()
                     scenePoint = self.ui.viewer_single.mapToScene(position)
                     print round(scenePoint.x()), round(scenePoint.y())
 
