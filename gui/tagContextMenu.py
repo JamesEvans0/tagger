@@ -10,7 +10,6 @@ class TagContextMenu(QtWidgets.QMenu):
     def addTagToContextMenu(self, _name):
         listEntry = (_name, self.addAction(_name))
         self.menuItemList.append(listEntry)
-        print self.menuItemList
 
     def updateTagItem(self, _old_name, _new_name):
         for i, entry in enumerate(self.menuItemList):
@@ -19,7 +18,6 @@ class TagContextMenu(QtWidgets.QMenu):
                 self.menuItemList[i] = (_new_name, entry[1])
 
     def removeTagItem(self, _name):
-        print self.menuItemList
         for i, entry in enumerate(self.menuItemList):
             if entry[0] == _name:
                 self.removeAction(entry[1])
