@@ -4,6 +4,9 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 from photoItem import PhotoItem
 from markerItem import MarkerItem
 
+MIN_ZOOM_LEVEL = 0
+GRID_ZOOM_LEVEL = 5
+
 
 class PhotoViewer(QtWidgets.QGraphicsView):
     def __init__(self, parent):
@@ -54,27 +57,42 @@ class PhotoViewer(QtWidgets.QGraphicsView):
 
         if not self._photo.pixmap().isNull():
             if event.angleDelta().y() > 0:
-                factor = 1.25
-                self._zoom += 1
+                self.zoomIn(marker_items)
             else:
-                factor = 0.8
-                self._zoom -= 1
+                self.zoomOut(marker_items)
 
-            if self._zoom > 0:
-                self.scale(factor, factor)
+    def zoomTo(self, zoom):
+        marker_items = []  # List of all marker items in the current _scene
+        for item in self._scene.items():
+            if type(item) == MarkerItem:
+                marker_items.append(item)
 
-                for item in marker_items:
-                    if event.angleDelta().y() > 0:
-                        item.notify("SCENE_ZOOM", None, 0.8)
-                    else:
-                        item.notify("SCENE_ZOOM", None, 1.25)
-            elif self._zoom == 0:
-                self.fitInView()
+        while int(zoom) > int(self._zoom):
+            self.zoomIn(marker_items)
 
-                for item in marker_items:
-                    item.notify("SCENE_RESET", None, factor)
-            else:
-                self._zoom = 0
+        while int(zoom) < int(self._zoom):
+            self.zoomOut(marker_items)
+
+    def zoomIn(self, marker_items):
+        self._zoom += 1
+        factor = 1.25
+        self.scale(factor, factor)
+        for item in marker_items:
+            item.notify("SCENE_ZOOM", None, 0.8)
+
+    def zoomOut(self, marker_items):
+        self._zoom -= 1
+        factor = 0.8
+        if self._zoom > 0:
+            self.scale(factor, factor)
+            for item in marker_items:
+                item.notify("SCENE_ZOOM", None, 1.25)
+        elif self._zoom == 0:
+            self.fitInView()
+            for item in marker_items:
+                item.notify("SCENE_RESET", None, factor)
+        else:
+            self._zoom = 0
 
     def isImageNull(self):
         return self._photo.pixmap().isNull()

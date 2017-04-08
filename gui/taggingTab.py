@@ -11,6 +11,7 @@ from utils.geographicUtilities import *
 from gui.imageListItem import ImageListItem
 from gui.tagTableItem import TagTableItem
 from markerItem import MarkerItem
+from photoViewer import MIN_ZOOM_LEVEL, GRID_ZOOM_LEVEL
 
 
 class TaggingTab(QtWidgets.QWidget, Ui_TaggingTab, Observable):
@@ -20,6 +21,9 @@ class TaggingTab(QtWidgets.QWidget, Ui_TaggingTab, Observable):
 
         self.currentFlight = None
         self.currentImage = None
+
+        self.gridEnabled = False
+        self.gridCell = 0
 
         self.setupUi(self)
         self.connectButtons()
@@ -49,6 +53,7 @@ class TaggingTab(QtWidgets.QWidget, Ui_TaggingTab, Observable):
         self.button_previous.clicked.connect(self.previousImage)
         self.button_next.clicked.connect(self.nextImage)
         self.button_addImage.clicked.connect(self.addImage)
+        self.button_gridMode.clicked.connect(self.gridMode)
 
     def addTag(self):
         dialog = TagDialog(title="Create tag")
@@ -252,3 +257,19 @@ class TaggingTab(QtWidgets.QWidget, Ui_TaggingTab, Observable):
                 _list.append(m)
 
         return _list
+
+    def gridMode(self):
+        if self.gridEnabled:
+            self.gridEnabled = False
+            self.button_gridMode.setStyleSheet('')
+            self.viewer_single.zoomTo(MIN_ZOOM_LEVEL)
+        else:
+            self.gridEnabled = True
+            self.button_gridMode.setStyleSheet('QPushButton {background-color: yellow;}')
+            self.viewer_single.zoomTo(GRID_ZOOM_LEVEL)
+
+    def previousGridCell(self):
+        pass
+
+    def nextGridCell(self):
+        pass

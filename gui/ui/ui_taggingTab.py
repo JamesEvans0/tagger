@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'ui_taggingTab.ui'
+# Form implementation generated from reading ui file 'gui/ui/ui_taggingTab.ui'
 #
 # Created by: PyQt5 UI code generator 5.5.1
 #
@@ -75,7 +75,10 @@ class Ui_TaggingTab(object):
         self.gridLayout_2.addWidget(self.button_toggleView, 2, 0, 1, 1)
         self.button_addImage = QtWidgets.QPushButton(self.groupBox_3)
         self.button_addImage.setObjectName("button_addImage")
-        self.gridLayout_2.addWidget(self.button_addImage, 2, 1, 1, 1)
+        self.gridLayout_2.addWidget(self.button_addImage, 1, 1, 1, 1)
+        self.button_gridMode = QtWidgets.QPushButton(self.groupBox_3)
+        self.button_gridMode.setObjectName("button_gridMode")
+        self.gridLayout_2.addWidget(self.button_gridMode, 2, 1, 1, 1)
         self.verticalLayout_3.addLayout(self.gridLayout_2)
         self.minimap = MiniMap(self.groupBox_3)
         self.minimap.setMinimumSize(QtCore.QSize(300, 190))
@@ -118,6 +121,7 @@ class Ui_TaggingTab(object):
         self.button_previous.setText(_translate("TaggingTab", "Previous"))
         self.button_toggleView.setText(_translate("TaggingTab", "Toggle View"))
         self.button_addImage.setText(_translate("TaggingTab", "Add Image"))
+        self.button_gridMode.setText(_translate("TaggingTab", "Grid Mode"))
 
 from gui.miniMap import MiniMap
 from gui.photoViewer import PhotoViewer

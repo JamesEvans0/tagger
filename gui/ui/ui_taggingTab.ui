@@ -132,10 +132,17 @@
             </property>
            </widget>
           </item>
-          <item row="2" column="1">
+          <item row="1" column="1">
            <widget class="QPushButton" name="button_addImage">
             <property name="text">
              <string>Add Image</string>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="1">
+           <widget class="QPushButton" name="button_gridMode">
+            <property name="text">
+             <string>Grid Mode</string>
             </property>
            </widget>
           </item>
