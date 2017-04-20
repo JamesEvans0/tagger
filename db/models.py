@@ -40,6 +40,7 @@ class Tag(models.Model):
     type = models.CharField(max_length=30)
     subtype = models.CharField(max_length=30, unique=True)
     symbol = models.CharField(max_length=30)
+    flight = models.ManyToManyField(Flight)
     num_occurrences = models.IntegerField(default=0)
 
 class Marker(models.Model):

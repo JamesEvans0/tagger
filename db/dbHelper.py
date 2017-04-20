@@ -52,8 +52,8 @@ def get_all_images_for_flight(flight):
     return images
 
 # Tag
-def create_tag(type, subtype, symbol, num_occurrences=0):
-    t = Tag(type=type, subtype=subtype, symbol=symbol, num_occurrences=num_occurrences)
+def create_tag(type, subtype, symbol, flight, num_occurrences=0):
+    t = Tag(type=type, subtype=subtype, symbol=symbol, flight=flight, num_occurrences=num_occurrences)
     t.save()
     return t
 
