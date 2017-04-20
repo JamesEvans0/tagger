@@ -68,7 +68,8 @@ class TaggingTab(QtWidgets.QWidget, Ui_TaggingTab, Observable):
                 subtype = self.tag_dialog.subtype.text()
                 count = "0"
                 icon = self.tag_dialog.icons.currentText()
-                t = create_tag(type=tagType, subtype=subtype, symbol=icon, flight=self.currentFlight, num_occurrences=int(count))
+                t = create_tag(type=tagType, subtype=subtype, symbol=icon, num_occurrences=int(count))
+                t.flight.add(self.currentFlight)
                 self.addTagToUi(t)
                 self.notifyObservers("TAG_CREATED", None, t)
 
