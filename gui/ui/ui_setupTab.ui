@@ -99,6 +99,9 @@
      <layout class="QGridLayout" name="gridLayout">
       <item row="2" column="2">
        <widget class="QDateEdit" name="edit_flightDate">
+        <property name="toolTip">
+         <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Enter or select date of flight&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+        </property>
         <property name="calendarPopup">
          <bool>true</bool>
         </property>
@@ -112,7 +115,11 @@
        </widget>
       </item>
       <item row="4" column="2">
-       <widget class="QLineEdit" name="line_areaMap"/>
+       <widget class="QLineEdit" name="line_areaMap">
+        <property name="toolTip">
+         <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Select a map of flight area&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+        </property>
+       </widget>
       </item>
       <item row="2" column="0">
        <widget class="QLabel" name="label_5">
@@ -122,10 +129,18 @@
        </widget>
       </item>
       <item row="0" column="2">
-       <widget class="QLineEdit" name="line_locationName"/>
+       <widget class="QLineEdit" name="line_locationName">
+        <property name="toolTip">
+         <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Enter location of the flight&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+        </property>
+       </widget>
       </item>
       <item row="1" column="2">
-       <widget class="QLineEdit" name="line_siteElevation"/>
+       <widget class="QLineEdit" name="line_siteElevation">
+        <property name="toolTip">
+         <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Enter elevation of the base from sea level&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+        </property>
+       </widget>
       </item>
       <item row="4" column="0">
        <widget class="QLabel" name="label_6">
@@ -162,7 +177,11 @@
        </widget>
       </item>
       <item row="5" column="2">
-       <widget class="QLineEdit" name="line_intrinsicMatrix"/>
+       <widget class="QLineEdit" name="line_intrinsicMatrix">
+        <property name="toolTip">
+         <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Select an intrinsic matrix&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+        </property>
+       </widget>
       </item>
       <item row="5" column="0">
        <widget class="QLabel" name="label_7">
