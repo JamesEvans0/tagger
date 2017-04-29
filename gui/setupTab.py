@@ -25,7 +25,11 @@ class SetupTab(QtWidgets.QWidget, Ui_SetupTab, Observable):
         self.button_selectIntrinsicMatrix.clicked.connect(self.selectIntrinsicMatrix)
 
     def enableSelectingAndCreatingFlights(self):
-        self.group_openExistingFlight.setEnabled(True)
+        numberOfFlightsLoaded = len(get_all_flights())
+        if numberOfFlightsLoaded > 0:
+            self.group_openExistingFlight.setEnabled(True)
+        else:
+            self.group_openExistingFlight.setEnabled(False)
         self.group_createNewFlight.setEnabled(True)
 
     def addFlightToUi(self, flight):
