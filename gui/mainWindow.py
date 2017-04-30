@@ -1,6 +1,6 @@
 # StackOverflow post used to receive mouseMove events - http://stackoverflow.com/questions/28080257/how-does-qgraphicsview-receive-mouse-move-events
 
-from PyQt5 import QtWidgets, QtCore
+from PyQt5 import QtWidgets, QtCore, QtGui
 from PyQt5.QtWidgets import QShortcut
 from PyQt5.QtGui import QKeySequence
 
@@ -26,6 +26,7 @@ class MainWindow(QtWidgets.QMainWindow, Observable):
 
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
+        self.setWindowIcon(QtGui.QIcon('./app_icon.png'))
 
         self.setupTab = SetupTab()
         self.ui.tabWidget.addTab(self.setupTab, "Setup")
