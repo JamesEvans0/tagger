@@ -104,7 +104,7 @@ class SetupTab(QtWidgets.QWidget, Ui_SetupTab):
     def selectWatchDirectory(self):
         filepath = QtWidgets.QFileDialog.getExistingDirectory(self, "Select Directory to Watch", "../vision-system/")
         if not filepath:
-            return
+            return None
         self.line_watchDirectory.setText(filepath)
         self.enableSelectingAndCreatingFlights()
 
@@ -126,6 +126,14 @@ class SetupTab(QtWidgets.QWidget, Ui_SetupTab):
             self.enableSelectingAndCreatingFlights()
             self.disableSelectingWatcherFolder()
             self.turn_off_watcher_signal.emit()
+
+    def isFolderWatcherCheckboxSelected(self):
+        if self.checkbox_folderWatcher.checkState() == QtCore.Qt.Checked:
+            return True
+        elif self.checkbox_folderWatcher.checkState() == QtCore.Qt.Unchecked:
+            return False
+        else:
+            raise Exception
 
     def interopSupportCheckboxPressed(self):
         print 'Interop checkbox pressed'
