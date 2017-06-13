@@ -115,14 +115,17 @@ class Controller():
         if self.currentFlight is not None:
             self.window.setupTab.button_browseWatchDirectory.click()
             self.startWatcher()
+            self.window.setupTab.setWatcherStatusEnabled()
 
     @QtCore.pyqtSlot()
     def processDisableWatcher(self):
         self.resetWatcher()
+        self.window.setupTab.setWatcherStatusDisabled()
 
     def loadFlight(self, id): # TODO: this function does more than the name implies
         self.currentFlight = self.flights[id]
         self.startWatcher()
+        self.window.setupTab.setWatcherStatusEnabled()
         self.loadTags()
         self.loadMap(self.currentFlight)
         self.window.taggingTab.currentFlight = self.currentFlight

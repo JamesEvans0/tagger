@@ -25,6 +25,7 @@ class SetupTab(QtWidgets.QWidget, Ui_SetupTab):
         self.connectCheckboxes()
 
         self.edit_flightDate.setDate(QDate.currentDate())
+        self.line_watcherStatus.setText('Disabled')
 
     def connectButtons(self):
         self.button_loadFlight.clicked.connect(self.loadFlight)
@@ -50,6 +51,12 @@ class SetupTab(QtWidgets.QWidget, Ui_SetupTab):
 
     def disableSelectingWatcherFolder(self):
         self.button_browseWatchDirectory.setEnabled(False)
+
+    def setWatcherStatusDisabled(self):
+        self.line_watcherStatus.setText('Disabled')
+
+    def setWatcherStatusEnabled(self):
+        self.line_watcherStatus.setText('Enabled')
 
     def addFlightToUi(self, flight):
         self.combo_flights.addItem(flight.location + " " + str(flight.date))
