@@ -113,13 +113,9 @@ class Controller():
     @QtCore.pyqtSlot()
     def processEnableWatcher(self):
         if self.currentFlight is not None:
-            select_watch_directory_status = self.window.setupTab.button_browseWatchDirectory.click()
-            # if an empty directory is selected or Cancel is pressed, disable the watcher again
-            if select_watch_directory_status is None:
-                self.window.setupTab.checkbox_folderWatcher.setCheckState(QtCore.Qt.Unchecked)
-            else:
-                self.startWatcher()
-                self.window.setupTab.setWatcherStatusEnabled()
+            self.window.setupTab.selectWatchDirectory()
+            self.startWatcher()
+            self.window.setupTab.setWatcherStatusEnabled()
 
     @QtCore.pyqtSlot()
     def processDisableWatcher(self):
@@ -141,7 +137,7 @@ class Controller():
         self.loadImages() # Keep this sequentially after the setCurrentTab call. This is a workaround for a \
                           # Qt bug: https://goo.gl/gWXA9Q
 
-    def startWatcher(self):
+    def     startWatcher(self):
         try:
             self.imageWatcher.startWatching(self.currentFlight, self.window.setupTab.line_watchDirectory.text())
         except OSError:
