@@ -104,9 +104,10 @@ class SetupTab(QtWidgets.QWidget, Ui_SetupTab):
     def selectWatchDirectory(self):
         filepath = QtWidgets.QFileDialog.getExistingDirectory(self, "Select Directory to Watch", "../vision-system/")
         if not filepath:
-            return
+            return None
         self.line_watchDirectory.setText(filepath)
         self.enableSelectingAndCreatingFlights()
+        return filepath
 
     def selectIntrinsicMatrix(self):
         filepath = QtWidgets.QFileDialog.getOpenFileName(self, "Select Intrinsic Matrix to Load", "./intrinsic_matrices",
@@ -118,9 +119,12 @@ class SetupTab(QtWidgets.QWidget, Ui_SetupTab):
     def folderWatcherCheckboxPressed(self):
         checkbox_state = self.checkbox_folderWatcher.checkState()
         if checkbox_state == QtCore.Qt.Checked:
-            self.disableSelectingAndCreatingFlights()
-            self.enableSelectingWatcherFolder()
-            self.turn_on_watcher_signal.emit()
+            if self.selectWatchDirectory() is not None:
+                self.disableSelectingAndCreatingFlights()
+                self.enableSelectingWatcherFolder()
+                self.turn_on_watcher_signal.emit()
+            else:
+                self.checkbox_folderWatcher.setCheckState(QtCore.Qt.Unchecked)
         elif checkbox_state == QtCore.Qt.Unchecked:
             self.line_watchDirectory.setText('')
             self.enableSelectingAndCreatingFlights()

@@ -113,7 +113,6 @@ class Controller():
     @QtCore.pyqtSlot()
     def processEnableWatcher(self):
         if self.currentFlight is not None:
-            self.window.setupTab.selectWatchDirectory()
             self.startWatcher()
             self.window.setupTab.setWatcherStatusEnabled()
 
