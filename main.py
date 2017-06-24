@@ -24,25 +24,30 @@ class Controller():
         for flight in self.flights.values():
             self.window.setupTab.addFlightToUi(flight)
 
-        # connect signals
-        # Watcher
+        # Route and connect application signals
+        self.connectMainWindowSigals()
+        self.connectSetupTabSignals()
+        self.connectTaggingTabSignals()
+        self.connectTargetsTabSignals()
+        self.connectMapTabSignals()
+
+    def connectMainWindowSigals(self):
         self.window.image_added_signal.connect(self.window.taggingTab.processImageAdded)
         self.window.image_added_signal.connect(self.window.targetsTab.processImageAdded)
         self.window.image_added_signal.connect(self.window.mapTab.processImageAdded)
 
-        # Main Window
         self.window.reset_application_signal.connect(self.processReset)
         self.window.new_image_discovered_by_watcher_signal.connect(self.processNewImageInWatchedFolder,
                                                                      type=QtCore.Qt.QueuedConnection)
 
-        # from Setup Tab
+    def connectSetupTabSignals(self):
         self.window.setupTab.flight_load_signal.connect(self.processFlightLoad)
         self.window.setupTab.flight_create_signal.connect(self.processFlightCreated)
 
         self.window.setupTab.turn_off_watcher_signal.connect(self.processDisableWatcher)
         self.window.setupTab.turn_on_watcher_signal.connect(self.processEnableWatcher, type=QtCore.Qt.QueuedConnection)
 
-        # from Tagging Tab
+    def connectTaggingTabSignals(self):
         self.window.taggingTab.tagging_tab_context_menu.create_marker_signal.connect(self.window.taggingTab.processCreateMarker)
         self.window.taggingTab.marker_created_signal.connect(self.window.targetsTab.processMarkerCreated)
 
@@ -58,10 +63,11 @@ class Controller():
         #       This ensures that the object exists while references are made to it. Registering slots in this order ensures that
         self.window.taggingTab.tag_deleted_signal.connect(self.processTagDeleted)
 
-        # from Targets Tab
-        self.window.targetsTab.targets_tab_context_menu.go_to_image_in_tagging_tab_signal.connect(self.window.targetsTab.processGoToImageInTaggingTab)
+    def connectTargetsTabSignals(self):
+        self.window.targetsTab.targets_tab_context_menu.go_to_image_in_tagging_tab_signal.connect(
+            self.window.targetsTab.processGoToImageInTaggingTab)
 
-        # from Map Tab
+    def connectMapTabSignals(self):
         self.window.mapTab.map_context_menu.find_images_signal.connect(self.window.mapTab.processFindImages)
         self.window.mapTab.map_context_menu.copy_latitude_longitude_signal.connect(self.window.mapTab.processCopyLatLon)
         self.window.mapTab.map_context_menu.reset_filters_signal.connect(self.window.mapTab.processResetFilters)
@@ -136,7 +142,7 @@ class Controller():
         self.loadImages() # Keep this sequentially after the setCurrentTab call. This is a workaround for a \
                           # Qt bug: https://goo.gl/gWXA9Q
 
-    def     startWatcher(self):
+    def startWatcher(self):
         try:
             self.imageWatcher.startWatching(self.currentFlight, self.window.setupTab.line_watchDirectory.text())
         except OSError:
