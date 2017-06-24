@@ -120,8 +120,6 @@ class SetupTab(QtWidgets.QWidget, Ui_SetupTab):
         checkbox_state = self.checkbox_folderWatcher.checkState()
         if checkbox_state == QtCore.Qt.Checked:
             if self.selectWatchDirectory() is not None:
-                self.disableSelectingAndCreatingFlights()
-                self.enableSelectingWatcherFolder()
                 self.turn_on_watcher_signal.emit()
             else:
                 self.checkbox_folderWatcher.setCheckState(QtCore.Qt.Unchecked)
