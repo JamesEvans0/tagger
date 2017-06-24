@@ -23,6 +23,8 @@ class Controller(Observer):
         self.window.taggingTab.addObserver(self)
         self.imageWatcher.event_handler.addObserver(self)
 
+        synchronize_tag_num_occurrences()
+
         # populate lists
         for flight in self.flights.values():
             self.window.setupTab.addFlightToUi(flight)

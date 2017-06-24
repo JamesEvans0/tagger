@@ -66,6 +66,11 @@ def get_all_tags():
         list.append(t)
     return list
 
+def synchronize_tag_num_occurrences():
+    for t in Tag.objects.annotate(child_marker_count=models.Count('marker')):
+        t.num_occurrences = t.child_marker_count
+        t.save()
+
 # Marker
 def create_marker(tag, image, latitude, longitude):
     m = Marker(tag=tag, image=image, latitude=latitude, longitude=longitude)
