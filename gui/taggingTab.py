@@ -240,25 +240,25 @@ class TaggingTab(QtWidgets.QWidget, Ui_TaggingTab):
                 else:
                     self.viewer_single.getScene().removeItem(item)
 
-    def updateImageList(self):
-        for row_num in range(self.list_images.count()):
-            item = self.list_images.item(row_num)
-            image = item.getImage()
-
-            font = item.font()
-            if not image.is_reviewed:
-                font.setBold(True)
-            else:
-                font.setBold(False)
-
-            item.setFont(font)
-
-        if self.radioButton_allImages.isChecked():
-            self.allImagesButtonToggled()
-        if self.radioButton_notReviewed.isChecked():
-            self.notReviewedButtonToggled()
-        if self.radioButton_reviewed.isChecked():
-            self.reviewedButtonToggled()
+    # def updateImageList(self):
+    #     for row_num in range(self.list_images.count()):
+    #         item = self.list_images.item(row_num)
+    #         image = item.getImage()
+    #
+    #         font = item.font()
+    #         if not image.is_reviewed:
+    #             font.setBold(True)
+    #         else:
+    #             font.setBold(False)
+    #
+    #         item.setFont(font)
+    #
+    #     if self.radioButton_allImages.isChecked():
+    #         self.allImagesButtonToggled()
+    #     if self.radioButton_notReviewed.isChecked():
+    #         self.notReviewedButtonToggled()
+    #     if self.radioButton_reviewed.isChecked():
+    #         self.reviewedButtonToggled()
 
     def toggleImageReviewed(self):
         item = self.list_images.currentItem()
@@ -355,7 +355,7 @@ class TaggingTab(QtWidgets.QWidget, Ui_TaggingTab):
         self.updateRadioButtonLabels()
 
         # refresh image reviewed/not reviewed state
-        self.updateImageList()
+        # self.updateImageList()
             
         # update widgets
         self.minimap.updateContour(self.currentImage)
@@ -519,7 +519,6 @@ class TaggingTab(QtWidgets.QWidget, Ui_TaggingTab):
         for key, count in tags.iteritems():
             save_image_name += key + '_' + str(count) + '_'
         save_image_name += self.currentImage.filename.split('.')[0]
-        print save_image_name
 
         return save_image_name
 

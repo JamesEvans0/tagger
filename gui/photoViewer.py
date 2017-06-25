@@ -24,6 +24,12 @@ class PhotoViewer(QtWidgets.QGraphicsView):
 
         self._scale.setGraphicsView(self)
 
+        self.rubber_band = None
+        self.rubber_band_initial_point = 0
+        self.rubber_band_end_point = 0
+
+        self.viewport().installEventFilter(self)
+
     def fitInView(self):
         rect = QtCore.QRectF(self._photo.pixmap().rect())
         if not rect.isNull():
@@ -99,3 +105,33 @@ class PhotoViewer(QtWidgets.QGraphicsView):
 
     def getPhotoItem(self):
         return self._photo
+
+    def eventFilter(self, QObject, QEvent):
+        if QEvent.type() == QtCore.QEvent.MouseButtonPress and QEvent.modifiers() == QtCore.Qt.ControlModifier:
+            if not self.isImageNull() and not self.rubber_band:
+                self.rubber_band_initial_point = self.mapToGlobal(QEvent.pos())
+                self.rubber_band_end_point = self.mapToGlobal(QEvent.pos())
+                self.rubber_band = QtWidgets.QRubberBand(QtWidgets.QRubberBand.Rectangle)
+                self.rubber_band.setGeometry(QtCore.QRect(self.rubber_band_initial_point, self.rubber_band_end_point))
+                self.rubber_band.show()
+        elif QEvent.type() == QtCore.QEvent.MouseMove:
+            if self.rubber_band:
+                self.setDragMode(QtWidgets.QGraphicsView.NoDrag)
+                self.rubber_band_end_point = self.mapToGlobal(QEvent.pos())
+                x = self.mapToScene(QEvent.pos()).x()
+                y = self.mapToScene(QEvent.pos()).y()
+                if x > self._scene.width():
+                    x = self._scene.width()
+                if y > self._scene.height():
+                    y = self._scene.height()
+                self.rubber_band_end_point = self.mapToGlobal(self.mapFromScene(QtCore.QPoint(x, y)))
+                self.rubber_band.setGeometry(QtCore.QRect(self.rubber_band_initial_point, self.rubber_band_end_point))
+        elif QEvent.type() == QtCore.QEvent.MouseButtonRelease:
+            if self.rubber_band:
+                self.rubber_band_end_point = self.mapToGlobal(QEvent.pos())
+                print self.mapToScene(self.rubber_band.rect()).boundingRect().width()
+                self.rubber_band.hide()
+                self.rubber_band = None
+            self.setDragMode(QtWidgets.QGraphicsView.ScrollHandDrag)
+
+        return QtWidgets.QWidget.eventFilter(self, QObject, QEvent)
