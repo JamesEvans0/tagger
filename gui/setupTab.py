@@ -65,9 +65,9 @@ class SetupTab(QtWidgets.QWidget, Ui_SetupTab):
         self.flight_load_signal.emit(self.combo_flights.currentText())
 
     def createFlight(self):
-        location = self.line_locationName.text()
+        flight_location = self.line_locationName.text()
         try:
-            elevation = float(self.line_siteElevation.text())
+            site_elevation_msl = float(self.line_siteElevation.text())
         except ValueError:
             exception_notification = QtWidgets.QMessageBox()
             exception_notification.setIcon(QtWidgets.QMessageBox.Warning)
@@ -77,20 +77,30 @@ class SetupTab(QtWidgets.QWidget, Ui_SetupTab):
             exception_notification.exec_()
             return
         date_string = self.edit_flightDate.text()
-        date = datetime.datetime.strptime(date_string, '%Y-%m-%d').date()
+        flight_date = datetime.datetime.strptime(date_string, '%Y-%m-%d').date()
         area_map = self.line_areaMap.text()
         intrinsic_matrix = self.line_intrinsicMatrix.text()
 
         if AreaMap.objects.filter(name=area_map).exists(): # TODO: change this DB call
-            am = AreaMap.objects.filter(name=area_map).last()
+            areamap = AreaMap.objects.filter(name=area_map).last()
         else:
-            corners_geo = loadGeotiff('./area_maps/{}'.format(area_map))
-            am = create_areamap(area_map, '{}.png'.format(area_map), corners_geo[0][1], corners_geo[0][0],
-                                                             corners_geo[1][1], corners_geo[1][0],
-                                                             corners_geo[2][1], corners_geo[2][0],
-                                                             corners_geo[3][1], corners_geo[3][0])
+            try:
+                corners_geo = loadGeotiff('./area_maps/{}'.format(area_map))
+            except AttributeError:
+                exception_notification = QtWidgets.QMessageBox()
+                exception_notification.setIcon(QtWidgets.QMessageBox.Warning)
+                exception_notification.setText('Error: setupTab.py. Area map does not exist; no flight created')
+                exception_notification.setWindowTitle('Error!')
+                exception_notification.setDetailedText('{}'.format(traceback.format_exc()))
+                exception_notification.exec_()
+                return
 
-        f = create_flight(location, elevation, intrinsic_matrix + '.xml', date, am)
+            areamap = create_areamap(area_map, '{}.png'.format(area_map), corners_geo[0][1], corners_geo[0][0],
+                                                                          corners_geo[1][1], corners_geo[1][0],
+                                                                          corners_geo[2][1], corners_geo[2][0],
+                                                                          corners_geo[3][1], corners_geo[3][0])
+
+        f = create_flight(flight_location, site_elevation_msl, '{}.xml'.format(intrinsic_matrix), flight_date, areamap)
         flight_list_id = '{} {}'.format(f.location, str(f.date))
         self.flight_create_signal.emit(flight_list_id, f)
 

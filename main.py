@@ -14,7 +14,7 @@ class Controller():
         self.currentFlight = None
         self.imageWatcher = Watcher()
         self.tags = []
-        self.images = []
+        self.images_from_current_flight = []
 
         self.window = MainWindow()
         self.window.show()
@@ -74,7 +74,7 @@ class Controller():
 
     # pseudo-slot since non-QObject types cannot have signals and slots
     def processImageAdded(self, new_image):
-        self.images.append(new_image)
+        self.images_from_current_flight.append(new_image)
         self.window.image_added_signal.emit(new_image)
 
     # Thread-safe way of notifying the main Qt thread that a watcher discovered a new image
@@ -94,7 +94,7 @@ class Controller():
         self.window.taggingTab.resetTab()
         self.window.targetsTab.resetTab()
         self.window.mapTab.resetTab()
-        self.loadFlight(flight_id)
+        self.setupApplicationForCurrentFlight(flight_id)
 
     @QtCore.pyqtSlot(str, Flight)
     def processFlightCreated(self, flight_id, flight):
@@ -127,20 +127,31 @@ class Controller():
         self.resetWatcher()
         self.window.setupTab.setWatcherStatusDisabled()
 
-    def loadFlight(self, id): # TODO: this function does more than the name implies
-        self.currentFlight = self.flights[id]
+    def setupApplicationForCurrentFlight(self, flight_id):
+        self.setCurrentFlight(flight_id)
+
+        # Attempt to start the watcher if it's enabled
         if self.window.setupTab.isFolderWatcherCheckboxSelected():
             self.startWatcher()
             self.window.setupTab.setWatcherStatusEnabled()
-        self.loadTags()
-        self.loadMap(self.currentFlight)
+
+        # Copy database objects to later populate UI with them
+        self.copyDatabaseObjectsToLocalVariables()
+
+        # Create context menu that has been deleted during global GUI reset
+        self.window.targetsTab.setContextMenu()
+        # Change current tab to Tagging Tab
+        self.window.ui.tabWidget.setCurrentIndex(TAB_INDICES['TAB_TAGGING'])
+
+        self.loadUiElements() # Keep this sequentially after the setCurrentTab call. This is a workaround for a \
+                              # Qt bug: https://goo.gl/gWXA9Q
+
+    def setCurrentFlight(self, flight_id):
+        self.currentFlight = self.flights[flight_id]
+        # Set current flight values in all widgets that rely on it
         self.window.taggingTab.currentFlight = self.currentFlight
         self.window.mapTab.currentFlight = self.currentFlight
         self.window.targetsTab.current_flight = self.currentFlight
-        self.window.targetsTab.setContextMenu()
-        self.window.ui.tabWidget.setCurrentIndex(TAB_INDICES['TAB_TAGGING'])
-        self.loadImages() # Keep this sequentially after the setCurrentTab call. This is a workaround for a \
-                          # Qt bug: https://goo.gl/gWXA9Q
 
     def startWatcher(self):
         try:
@@ -153,8 +164,16 @@ class Controller():
             exception_notification.setDetailedText('{}'.format(traceback.format_exc()))
             exception_notification.exec_()
 
-    def loadTags(self):
+    def copyDatabaseObjectsToLocalVariables(self):
         self.tags = get_all_tags()
+        self.images_from_current_flight = get_all_images_for_flight(self.currentFlight)
+
+    def loadUiElements(self):
+        self.loadTags()
+        self.loadMap(self.currentFlight)
+        self.loadImages()
+
+    def loadTags(self):
         for tag in self.tags:
             self.window.targetsTab.addTagToUi(tag)
             self.window.taggingTab.addTagToUi(tag)
@@ -164,8 +183,7 @@ class Controller():
         self.window.mapTab.setMap(flight)
 
     def loadImages(self):
-        self.images = get_all_images_for_flight(self.currentFlight)
-        for i in self.images:
+        for i in self.images_from_current_flight:
             self.window.taggingTab.addImageToUi(i)
             self.window.targetsTab.addImageToUi(i)
             self.window.mapTab.addImageToUi(i)
