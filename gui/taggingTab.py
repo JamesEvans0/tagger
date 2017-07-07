@@ -26,7 +26,7 @@ cmd_subfolder = os.path.realpath(
     os.path.abspath(os.path.join(os.path.split(inspect.getfile(inspect.currentframe()))[0], "../../interop/client/")))
 if cmd_subfolder not in sys.path:
     sys.path.insert(0, cmd_subfolder)
-from interop import client, types
+# from interop import client, types
 
 TAG_TABLE_INDICES = {'TYPE': 0, 'SUBTYPE': 1, 'COUNT': 2, 'SYMBOL': 3}
 
@@ -290,6 +290,9 @@ class TaggingTab(QtWidgets.QWidget, Ui_TaggingTab):
         self.interop_target_dialog.setWindowModality(QtCore.Qt.NonModal)
         self.interop_target_dialog.show()
         self.activateWindow()
+        #self.setEnabled(False)
+        self.viewer_single.setEnabled(True)
+        self.setWindowState(QtCore.Qt.WindowActive)
 
     @QtCore.pyqtSlot()
     def disableTargetCropping(self):
@@ -298,6 +301,9 @@ class TaggingTab(QtWidgets.QWidget, Ui_TaggingTab):
         self.interop_target_dialog.setWindowModality(QtCore.Qt.ApplicationModal)
         self.interop_target_dialog.show()
         self.interop_target_dialog.activateWindow()
+        #self.setEnabled(True)
+        # self.interop_target_dialog.setWindowState(QtCore.Qt.WindowActive)
+        self.setWindowState(QtCore.Qt.WindowNoState)
 
     @QtCore.pyqtSlot(QtCore.QRectF)
     def processTargetCropped(self, cropped_rect_scene_coords):
@@ -425,6 +431,21 @@ class TaggingTab(QtWidgets.QWidget, Ui_TaggingTab):
 
                 # Trigger clean disconnect routine
                 self.interop_connection_error_signal.emit()
+        if self.interop_client is not None:
+            pass
+            # interop_target = types.Target(type=target_type,
+            #                                latitude=latitude,
+            #                                longitude=longitude,
+            #                                orientation=orientation,
+            #                                shape=shape,
+            #                                background_color=shape_color,
+            #                                alphanumeric=alphanumeric,
+            #                                alphanumeric_color=alphanumeric_color)
+            # try:
+            #     interop_target = self.interop_client.post_target(interop_target)
+            #     return interop_target.id
+            # except:
+            #     print 'you fucked up'
 
     def addMarkerToUi(self, x, y, marker, opacity):
         # Create MarkerItem
