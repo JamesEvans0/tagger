@@ -315,61 +315,62 @@ class TaggingTab(QtWidgets.QWidget, Ui_TaggingTab):
         self.disableTargetCropping()
 
     def createAndPostInteropTarget(self, target_type, latitude, longitude, orientation, shape, shape_color, alphanumeric, alphanumeric_color):
-        interop_target = types.Target(type=target_type,
-                                       latitude=latitude,
-                                       longitude=longitude,
-                                       orientation=orientation,
-                                       shape=shape,
-                                       background_color=shape_color,
-                                       alphanumeric=alphanumeric,
-                                       alphanumeric_color=alphanumeric_color)
-
-        if self.interop_enabled is True and self.interop_is_online is True:
-            try:
-                interop_target = self.interop_client.post_target(interop_target)
-                return interop_target.id
-            except requests.ConnectionError:
-                # Return offline object ID
-                latest_offline_id = Marker.objects.all().aggregate(Min('interop_id'))
-                # if no offline targets were saved, make the first one
-                if latest_offline_id.get('interop_id__min') is None:
-                    new_offline_id = -1
-                else:
-                    if latest_offline_id.get('interop_id__min') > 0:
-                        new_offline_id = -1
-                    else:
-                        new_offline_id = latest_offline_id.get('interop_id__min') - 1
-
-                # Save the offline object with offline ID
-                self.saveOfflineJSON(interop_target, new_offline_id)
-
-                # Notify the user of dropped connection
-                exception_notification = QtWidgets.QMessageBox()
-                exception_notification.setIcon(QtWidgets.QMessageBox.Warning)
-                exception_notification.setText('Error: taggingTab.py. Cannot connect to server. Offline object has been saved. Reconnect manually')
-                exception_notification.setWindowTitle('Error!')
-                exception_notification.exec_()
-
-                # Trigger clean disconnect routine
-                self.interop_connection_error_signal.emit()
-
-                return new_offline_id
-        elif self.interop_enabled is True and self.interop_is_online is False:
-            # Return offline object ID
-            latest_offline_id = Marker.objects.all().aggregate(Min('interop_id'))
-            # if no offline targets were saved, make the first one
-            if latest_offline_id.get('interop_id__min') is None:
-                new_offline_id = -1
-            else:
-                if latest_offline_id.get('interop_id__min') > 0:
-                    new_offline_id = -1
-                else:
-                    new_offline_id = latest_offline_id.get('interop_id__min') - 1
-
-            # Save the offline object with offline ID
-            self.saveOfflineJSON(interop_target, new_offline_id)
-
-            return new_offline_id
+        pass
+        # interop_target = types.Target(type=target_type,
+        #                                latitude=latitude,
+        #                                longitude=longitude,
+        #                                orientation=orientation,
+        #                                shape=shape,
+        #                                background_color=shape_color,
+        #                                alphanumeric=alphanumeric,
+        #                                alphanumeric_color=alphanumeric_color)
+        #
+        # if self.interop_enabled is True and self.interop_is_online is True:
+        #     try:
+        #         interop_target = self.interop_client.post_target(interop_target)
+        #         return interop_target.id
+        #     except requests.ConnectionError:
+        #         # Return offline object ID
+        #         latest_offline_id = Marker.objects.all().aggregate(Min('interop_id'))
+        #         # if no offline targets were saved, make the first one
+        #         if latest_offline_id.get('interop_id__min') is None:
+        #             new_offline_id = -1
+        #         else:
+        #             if latest_offline_id.get('interop_id__min') > 0:
+        #                 new_offline_id = -1
+        #             else:
+        #                 new_offline_id = latest_offline_id.get('interop_id__min') - 1
+        #
+        #         # Save the offline object with offline ID
+        #         self.saveOfflineJSON(interop_target, new_offline_id)
+        #
+        #         # Notify the user of dropped connection
+        #         exception_notification = QtWidgets.QMessageBox()
+        #         exception_notification.setIcon(QtWidgets.QMessageBox.Warning)
+        #         exception_notification.setText('Error: taggingTab.py. Cannot connect to server. Offline object has been saved. Reconnect manually')
+        #         exception_notification.setWindowTitle('Error!')
+        #         exception_notification.exec_()
+        #
+        #         # Trigger clean disconnect routine
+        #         self.interop_connection_error_signal.emit()
+        #
+        #         return new_offline_id
+        # elif self.interop_enabled is True and self.interop_is_online is False:
+        #     # Return offline object ID
+        #     latest_offline_id = Marker.objects.all().aggregate(Min('interop_id'))
+        #     # if no offline targets were saved, make the first one
+        #     if latest_offline_id.get('interop_id__min') is None:
+        #         new_offline_id = -1
+        #     else:
+        #         if latest_offline_id.get('interop_id__min') > 0:
+        #             new_offline_id = -1
+        #         else:
+        #             new_offline_id = latest_offline_id.get('interop_id__min') - 1
+        #
+        #     # Save the offline object with offline ID
+        #     self.saveOfflineJSON(interop_target, new_offline_id)
+        #
+        #     return new_offline_id
 
     def saveOfflineJSON(self, offline_interop_target, offline_target_id):
         flight_root = QtCore.QDir(FLIGHT_DIRECTORY + '{}'.format(self.currentFlight.img_path))

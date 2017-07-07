@@ -148,7 +148,7 @@ class Controller():
     def processInteropConnect(self, ip_address, port_number, username, password):
         server = '{}:{}'.format(ip_address, port_number)
         try:
-            self.interop_client = client.Client(server, username, password, timeout=5, max_retries=2)
+            # self.interop_client = client.Client(server, username, password, timeout=5, max_retries=2)
             self.window.taggingTab.setInteropEnabled()
             self.window.taggingTab.setInteropOnline()
             self.window.taggingTab.interop_client = self.interop_client
