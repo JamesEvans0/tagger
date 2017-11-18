@@ -1,3 +1,7 @@
+import traceback
+import requests
+import json
+
 from PyQt5 import QtWidgets, QtGui, QtCore
 from PyQt5.QtWidgets import QDialog
 from PyQt5.QtGui import QPixmap
@@ -5,10 +9,8 @@ from PyQt5.QtCore import QRect
 from ui.ui_taggingTab import Ui_TaggingTab
 from tagDialog import TagDialog
 from db.dbHelper import *
-from db.models import Image
-from observer import *
-from utils.geolocate import geolocateLatLonFromPixelOnImage, getPixelFromLatLon
-from utils.geographicUtilities import *
+from django.db.models import Min
+from gui.interopTargetDialog import InteropTargetDialog
 from gui.imageListItem import ImageListItem
 from gui.tagTableItem import TagTableItem
 from gui.tagContextMenu import TagContextMenu
@@ -18,16 +20,38 @@ from utils.imageInfo import processNewImage
 from utils.geolocate import getPixelFromLatLon
 from utils.geographicUtilities import *
 
+# use this if you want to include modules from a subfolder
+import inspect
+cmd_subfolder = os.path.realpath(
+    os.path.abspath(os.path.join(os.path.split(inspect.getfile(inspect.currentframe()))[0], "../../interop/client/")))
+if cmd_subfolder not in sys.path:
+    sys.path.insert(0, cmd_subfolder)
+from interop import client, types
 
 TAG_TABLE_INDICES = {'TYPE': 0, 'SUBTYPE': 1, 'COUNT': 2, 'SYMBOL': 3}
 
-class TaggingTab(QtWidgets.QWidget, Ui_TaggingTab, Observable):
+class TaggingTab(QtWidgets.QWidget, Ui_TaggingTab):
+
+    # signals originating from this module
+    tag_created_signal = QtCore.pyqtSignal(Tag)
+    tag_edited_signal = QtCore.pyqtSignal(Tag)
+    tag_deleted_signal = QtCore.pyqtSignal(Tag)
+    current_image_changed_signal = QtCore.pyqtSignal()
+    marker_created_signal = QtCore.pyqtSignal(Marker)
+    image_manually_added_signal = QtCore.pyqtSignal(Image)
+
+    interop_connection_error_signal = QtCore.pyqtSignal()
+
     def __init__(self):
         super(TaggingTab, self).__init__()
-        Observable.__init__(self)
 
         self.currentFlight = None
         self.currentImage = None
+
+        # target information will be sent to Interop when enabled
+        self.interop_enabled = False
+        self.interop_is_online = False
+        self.interop_client = None
 
         self.setupUi(self)
         self.connectButtons()
@@ -39,8 +63,6 @@ class TaggingTab(QtWidgets.QWidget, Ui_TaggingTab, Observable):
         self.tagging_tab_context_menu = TagContextMenu()
         self.viewer_single._photo.setTabContextMenu(self.tagging_tab_context_menu)
 
-        self.viewer_single.getPhotoItem().addObserver(self)
-
         # retranslate radio buttons to display image count
         self.all_image_count = 0
         self.reviewed_image_count = 0
@@ -48,30 +70,51 @@ class TaggingTab(QtWidgets.QWidget, Ui_TaggingTab, Observable):
         self.all_image_current_row = 0
         self.updateRadioButtonLabels()
 
+        self.interop_target_dialog = InteropTargetDialog(self.enableTargetCropping)
+
+    def setInteropEnabled(self):
+        self.interop_enabled = True
+
+    def setInteropDisabled(self):
+        self.interop_enabled = False
+
+    def setInteropOnline(self):
+        self.interop_is_online = True
+
+    def setInteropOffline(self):
+        self.interop_is_online = False
+
     @QtCore.pyqtSlot(Image)
-    def processNewImage(self, image):
+    def processImageAdded(self, image):
         self.addImageToUi(image)
 
+    @QtCore.pyqtSlot(Tag)
+    def processCreateMarker(self, markers_tag):
+        self.addMarker(markers_tag)
+
+    def processMarkerDeleted(self, deleted_marker_item):
+        self.viewer_single.getScene().removeItem(deleted_marker_item)
+        marker_to_delete = deleted_marker_item.getMarker()
+        marker_to_delete.tag.num_occurrences -= 1
+        marker_to_delete.tag.save()
+        self.updateTagMarkerCountInUi(marker_to_delete.tag)
+
+        if self.interop_enabled:
+            if marker_to_delete.interop_id != 0:
+                self.interop_client.delete_target(marker_to_delete.interop_id)
+        delete_marker(marker_to_delete)
+
+    def processMarkerParentImageChange(self, image_changed_to):
+        if image_changed_to in self.image_list_item_dict:
+            self.list_images.setCurrentItem(self.image_list_item_dict.get(image_changed_to))
 
     def updateRadioButtonLabels(self):
-        self.radioButton_allImages.setText('All Images ({}/{})'.format(self.all_image_current_row, self.all_image_count))
+        if self.all_image_current_row == 0:
+            self.radioButton_allImages.setText('All Images (-/{})'.format(self.all_image_count))
+        else:
+            self.radioButton_allImages.setText('All Images ({}/{})'.format(self.all_image_current_row, self.all_image_count))
         self.radioButton_reviewed.setText('Reviewed ({})'.format(self.reviewed_image_count))
         self.radioButton_notReviewed.setText('Not Reviewed ({})'.format(self.not_reviewed_image_count))
-
-    def notify(self, event, id, data):
-        if event is "MARKER_CREATE":
-            self.addMarker(data)
-        elif event is "MARKER_DELETED":
-            self.viewer_single.getScene().removeItem(data)
-            marker_to_delete = data.getMarker()
-            marker_to_delete.tag.num_occurrences -= 1
-            marker_to_delete.tag.save()
-            self.updateTagMarkerCountInUi(marker_to_delete.tag)
-            delete_marker(marker_to_delete)
-            self.notifyObservers("MARKER_DELETED", None, marker_to_delete)
-        elif event is "MARKER_PARENT_IMAGE_CHANGE":
-            if data in self.image_list_item_dict:
-                self.list_images.setCurrentItem(self.image_list_item_dict.get(data))
 
     def connectButtons(self):
         self.button_addTag.clicked.connect(self.addTag)
@@ -98,9 +141,9 @@ class TaggingTab(QtWidgets.QWidget, Ui_TaggingTab, Observable):
                 subtype = self.tag_dialog.subtype.text()
                 count = "0"
                 icon = self.tag_dialog.icons.currentText()
-                t = create_tag(type=tagType, subtype=subtype, symbol=icon, num_occurrences=int(count))
-                self.addTagToUi(t)
-                self.notifyObservers("TAG_CREATED", None, t)
+                tag = create_tag(type=tagType, subtype=subtype, symbol=icon, num_occurrences=int(count))
+                self.addTagToUi(tag)
+                self.tag_created_signal.emit(tag)
 
     def addTagToUi(self, tag):
         row = self.list_tags.rowCount()
@@ -163,41 +206,215 @@ class TaggingTab(QtWidgets.QWidget, Ui_TaggingTab, Observable):
 
                     # update tag in context menu
                     self.tagging_tab_context_menu.updateTagItem(tag)
-
-                    self.notifyObservers("TAG_EDITED", None, tag)
+                    self.tag_edited_signal.emit(tag)
             else:
                 self.tag_dialog.removeIcon(icon) # Remove the current symbol if it hasn't been changed
 
     def removeTag(self):
-        row = self.list_tags.currentRow()
-        tag = self.list_tags.item(row, 0).getTag()
-        if row >= 0:
+        if self.list_tags.rowCount() > 0:
+            row = self.list_tags.currentRow()
+            tag = self.list_tags.item(row, 0).getTag()
+
+            self.attemptToDeleteTargetsFromInterop(tag)
+
             self.list_tags.removeRow(row)
             self.tagging_tab_context_menu.removeTagItem(tag)
             self.deleteMarkersFromUi(tag=tag)
+
             self.tag_dialog.addIcon(tag.symbol)
-            self.notifyObservers("TAG_DELETED", None, tag)
+            self.tag_deleted_signal.emit(tag)
 
     def addMarker(self, tag):
         pu = self.tagging_tab_context_menu.pixel_x_invocation_coord
         pv = self.tagging_tab_context_menu.pixel_y_invocation_coord
         lat, lon = geolocateLatLonFromPixelOnImage(self.currentImage, self.currentFlight.reference_altitude, pu, pv)
-        m = create_marker(tag=tag, image=self.currentImage, latitude=lat, longitude=lon)
-        m.tag.num_occurrences += 1
-        m.tag.save()
 
-        # update the marker count in the table
-        self.updateTagMarkerCountInUi(tag)
+        if self.isInteropAvailable():
+            self.interop_target_dialog.lineEdit_latitude.setText('{}'.format(lat))
+            self.interop_target_dialog.lineEdit_longitude.setText('{}'.format(lon))
+            self.interop_target_dialog.setTargetTag(tag)
+            self.interop_target_dialog.image_yaw = self.currentImage.yaw
+            self.interop_target_dialog.show()
+        else:
+            # default value used if interop is not enabled; properly posted interop target will never have ID=0
+            target_id = 0
 
-        self.addMarkerToUi(pu, pv, m, 1.0) # 1.0 means fully opaque for markers created in current image
-        self.notifyObservers("MARKER_CREATED", None, m)
+            m = create_marker(tag=tag, image=self.currentImage, latitude=lat, longitude=lon, interop_id=target_id)
+            m.tag.num_occurrences += 1
+            m.tag.save()
+
+            # update the marker count in the table
+            self.updateTagMarkerCountInUi(tag)
+
+            self.addMarkerToUi(pu, pv, m, 1.0) # 1.0 means fully opaque for markers created in current image
+            self.marker_created_signal.emit(m)
+
+    @QtCore.pyqtSlot()
+    def processInteropTargetDialogAccepted(self):
+        # Generate and post a target object, then extract it's Interop-assined ID
+        target_id = self.createAndPostInteropTarget(self.interop_target_dialog.comboBox_targetType.currentText(),
+                                                    self.interop_target_dialog.lineEdit_latitude.text(),
+                                                    self.interop_target_dialog.lineEdit_longitude.text(),
+                                                    self.interop_target_dialog.lineEdit_orientation.text(),
+                                                    self.interop_target_dialog.comboBox_shape.currentText(),
+                                                    self.interop_target_dialog.comboBox_shapeColor.currentText(),
+                                                    self.interop_target_dialog.lineEdit_alphanumeric.text(),
+                                                    self.interop_target_dialog.comboBox_alphanumericColor.currentText(),
+                                                    self.interop_target_dialog.textEdit_description.toPlainText())
+
+        # createAndPostInteropTarget will return ID = 0
+        if target_id != 0:
+            self.saveAndPostTargetImage(target_id)
+
+            m = create_marker(tag=self.interop_target_dialog.current_target_tag, image=self.currentImage,
+                              latitude=self.interop_target_dialog.lineEdit_latitude.text(),
+                              longitude=self.interop_target_dialog.lineEdit_longitude.text(), interop_id=target_id)
+            m.tag.num_occurrences += 1
+            m.tag.save()
+
+            # update the marker count in the table
+            self.updateTagMarkerCountInUi(self.interop_target_dialog.current_target_tag)
+
+            self.addMarkerToUi(self.tagging_tab_context_menu.pixel_x_invocation_coord, self.tagging_tab_context_menu.pixel_y_invocation_coord, m, 1.0) # 1.0 means fully opaque for markers created in current image
+            self.marker_created_signal.emit(m)
+
+            # Reset dialog window
+            self.interop_target_dialog.reset()
+
+    @QtCore.pyqtSlot()
+    def processInteropTargetDialogRejected(self):
+        if self.viewer_single.crop_enabled:
+            self.viewer_single.crop_enabled = False
+            self.list_images.setEnabled(True)
+
+        self.interop_target_dialog.reset()
+
+    def enableTargetCropping(self):
+        self.viewer_single.crop_enabled = True
+        self.interop_target_dialog.hide()
+        self.interop_target_dialog.setWindowModality(QtCore.Qt.NonModal)
+        self.interop_target_dialog.show()
+        self.activateWindow()
+        self.list_images.setEnabled(False)
+
+    @QtCore.pyqtSlot()
+    def disableTargetCropping(self):
+        self.viewer_single.crop_enabled = False
+        self.interop_target_dialog.hide()
+        self.interop_target_dialog.setWindowModality(QtCore.Qt.ApplicationModal)
+        self.interop_target_dialog.show()
+        self.interop_target_dialog.activateWindow()
+        self.list_images.setEnabled(True)
+
+    @QtCore.pyqtSlot(QtCore.QRectF)
+    def processTargetCropped(self, cropped_rect_scene_coords):
+        scene_origin_x = cropped_rect_scene_coords.x()
+        scene_origin_y = cropped_rect_scene_coords.y()
+        scene_width = int(cropped_rect_scene_coords.width())
+        scene_height = int(cropped_rect_scene_coords.height())
+
+        # Need to figure out which corner of the rectangle the dragging started from, and convert everything to top-left
+        if scene_width < 0:
+            scene_origin_x += scene_width
+        if scene_height < 0:
+            scene_origin_y += scene_height
+
+        integer_cropped_rect_scene_coords = QtCore.QRect(int(scene_origin_x),
+                                                         int(scene_origin_y),
+                                                         abs(scene_width),
+                                                         abs(scene_height))
+
+        self.interop_target_dialog.viewer_target._scene.setSceneRect(QtCore.QRectF(0, 0, abs(scene_width), abs(scene_height)))
+        cropped_target_image = self.viewer_single._photo.pixmap().copy(integer_cropped_rect_scene_coords)
+        self.interop_target_dialog.setCroppedImage(cropped_target_image)
+        self.interop_target_dialog.saveCroppedRect(integer_cropped_rect_scene_coords)
+        self.disableTargetCropping()
+
+    def createAndPostInteropTarget(self, target_type, latitude, longitude, orientation, shape, shape_color, alphanumeric, alphanumeric_color, description):
+        if target_type == 'emergent':
+            interop_target = types.Target(type=target_type,
+                                           latitude=latitude,
+                                           longitude=longitude,
+                                           description=description)
+        else:
+            interop_target = types.Target(type=target_type,
+                                           latitude=latitude,
+                                           longitude=longitude,
+                                           orientation=orientation,
+                                           shape=shape,
+                                           background_color=shape_color,
+                                           alphanumeric=alphanumeric,
+                                           alphanumeric_color=alphanumeric_color)
+
+        if self.isInteropAvailable():
+            try:
+                interop_target = self.interop_client.post_target(interop_target)
+                return interop_target.id
+            except requests.ConnectionError:
+                # Notify the user of dropped connection
+                exception_notification = QtWidgets.QMessageBox()
+                exception_notification.setIcon(QtWidgets.QMessageBox.Warning)
+                exception_notification.setText('Error: taggingTab.py. Cannot connect to server. Target was not posted. Reconnect manually')
+                exception_notification.setWindowTitle('Error!')
+                exception_notification.exec_()
+
+                # Trigger clean disconnect routine
+                self.interop_connection_error_signal.emit()
+
+                return 0
+
+    def saveAndPostTargetImage(self, interop_target_id):
+        flight_root = QtCore.QDir(FLIGHT_DIRECTORY + '{}'.format(self.currentFlight.img_path))
+        flight_root.makeAbsolute()
+        abs_flight_root = flight_root
+        abs_image_path = QtCore.QDir('{}/{}'.format(abs_flight_root.path(), self.currentImage.filename))
+        original_pixmap = QPixmap(abs_image_path.path())
+        cropped_pixmap = original_pixmap.copy(self.interop_target_dialog.current_target_cropped_rect)
+
+        target_save_path = QtCore.QDir('{}/interop-targets/temp'.format(abs_flight_root.path()))
+
+        if self.isInteropAvailable():
+            # set path where cropped images of targets will be saved
+            target_save_path = QtCore.QDir('{}/interop-targets'.format(abs_flight_root.path()))
+
+        if not QtCore.QDir(target_save_path.path()).exists():
+            target_save_path.mkpath(target_save_path.path()) # only an instance of QDir can create paths
+
+        target_image_filepath = QtCore.QDir('{}/{}'.format(target_save_path.path(), interop_target_id))
+
+        cropped_pixmap.save(target_image_filepath.path(), format='jpg', quality=100)
+
+        # Open target image
+        with open(target_image_filepath.path(), 'rb') as f:
+            image_data = f.read()
+
+        if self.isInteropAvailable():
+            try:
+                self.interop_client.post_target_image(interop_target_id, image_data)
+            except requests.ConnectionError:
+                # Delete interop target
+                if self.interop_client is not None:
+                    self.interop_client.delete_target(interop_target_id)
+
+                # Notify the user of dropped connection
+                exception_notification = QtWidgets.QMessageBox()
+                exception_notification.setIcon(QtWidgets.QMessageBox.Warning)
+                exception_notification.setText('Error: taggingTab.py. Cannot connect to server. Target was not posted. Reconnect manually')
+                exception_notification.setWindowTitle('Error!')
+                exception_notification.exec_()
+
+                # Trigger clean disconnect routine
+                self.interop_connection_error_signal.emit()
 
     def addMarkerToUi(self, x, y, marker, opacity):
         # Create MarkerItem
         image_width = self.currentImage.width
         initial_zoom = self.viewer_single.zoomFactor()
         marker = MarkerItem(marker, current_image=self.currentImage, initial_zoom=initial_zoom)
-        marker.addObserver(self)
+
+        # connect signals to handlers; signals are deleted when object is deleted
+        marker.setMarkerDeletedHandler(self.processMarkerDeleted)
+        marker.setMarkerParentImageChangeHandler(self.processMarkerParentImageChange)
 
         # Correctly position the MarkerItem graphic on the UI
         markerXPos = x - marker.pixmap().size().width() / 2  # To position w.r.t. center of pixMap
@@ -228,15 +445,30 @@ class TaggingTab(QtWidgets.QWidget, Ui_TaggingTab, Observable):
                         marker_to_delete_from_ui = item.getMarker()
                         marker_to_delete_from_ui.tag.num_occurrences -= 1
                         marker_to_delete_from_ui.tag.save()
-                        self.notifyObservers("MARKER_DELETED", None, marker_to_delete_from_ui)
                 else:
                     self.viewer_single.getScene().removeItem(item)
+
+    def attemptToDeleteTargetsFromInterop(self, target_tag):
+        markers_pending_delete = list(Marker.objects.filter(tag=target_tag))
+        for marker in markers_pending_delete:
+            if self.isInteropAvailable():
+                try:
+                    self.interop_client.delete_target(marker.interop_id)
+                except requests.ConnectionError:
+                    # Notify the user of dropped connection
+                    exception_notification = QtWidgets.QMessageBox()
+                    exception_notification.setIcon(QtWidgets.QMessageBox.Warning)
+                    exception_notification.setText('Error: taggingTab.py. Cannot connect to server. Target was not deleted. Reconnect manually')
+                    exception_notification.setWindowTitle('Error!')
+                    exception_notification.exec_()
+
+    def isInteropAvailable(self):
+        return (self.interop_client is not None and self.interop_enabled and self.interop_is_online)
 
     def updateImageList(self):
         for row_num in range(self.list_images.count()):
             item = self.list_images.item(row_num)
             image = item.getImage()
-            image.refresh_from_db()
 
             font = item.font()
             if not image.is_reviewed:
@@ -255,7 +487,17 @@ class TaggingTab(QtWidgets.QWidget, Ui_TaggingTab, Observable):
 
     def toggleImageReviewed(self):
         item = self.list_images.currentItem()
-        image = item.getImage()
+
+        try:
+            image = item.getImage()
+        except AttributeError:
+            exception_notification = QtWidgets.QMessageBox()
+            exception_notification.setIcon(QtWidgets.QMessageBox.Warning)
+            exception_notification.setText('Error: taggingTab.py. No image selected')
+            exception_notification.setWindowTitle('Error!')
+            exception_notification.setDetailedText('{}'.format(traceback.format_exc()))
+            exception_notification.exec_()
+            return
 
         if item:
             list_item_font = item.font()
@@ -301,7 +543,8 @@ class TaggingTab(QtWidgets.QWidget, Ui_TaggingTab, Observable):
         paths = QtWidgets.QFileDialog.getOpenFileNames(self, "Select images", ".", "Images (*.jpg)")[0]
         for path in paths:
             image = processNewImage(path, self.currentFlight)
-            self.notifyObservers("IMAGE_ADDED", None, image)
+            if image is not None:
+                self.image_manually_added_signal.emit(image)
 
     def addImageToUi(self, image):
         item = ImageListItem(image.filename, image)
@@ -338,17 +581,12 @@ class TaggingTab(QtWidgets.QWidget, Ui_TaggingTab, Observable):
 
         # refresh image reviewed/not reviewed state
         self.updateImageList()
-
-        # attempt to refresh tag counts
-        update_num_occurrences()
-        for tag in get_all_tags():
-            self.updateTagMarkerCountInUi(tag)
             
         # update widgets
         self.minimap.updateContour(self.currentImage)
         self.openImage('./flights/{}/{}'.format(self.currentFlight.img_path, self.currentImage.filename), self.viewer_single)
 
-        self.notifyObservers("CURRENT_IMG_CHANGED", None, None)
+        self.current_image_changed_signal.emit()
 
         # udpate scale
         self.viewer_single.updateScale()
@@ -440,6 +678,13 @@ class TaggingTab(QtWidgets.QWidget, Ui_TaggingTab, Observable):
 
         # clear the photo viewer
         self.viewer_single.setPhoto(None)
+
+        # reset image count
+        self.all_image_count = 0
+        self.reviewed_image_count = 0
+        self.not_reviewed_image_count = 0
+        self.all_image_current_row = 0
+        self.updateRadioButtonLabels()
 
     def updateOnResize(self):
         self.viewer_single.fitInView()

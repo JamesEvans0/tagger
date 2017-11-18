@@ -2,7 +2,7 @@ import ntpath
 import time
 import threading
 import os
-from observer import Observable as GuiObservable
+from db.models import Image
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 from utils.imageInfo import processNewImage, GetDirectoryAndFilenameFromFullPath
@@ -37,10 +37,11 @@ class Watcher:
                 time.sleep(STOPPING_CONDITION_CHECK_INTERVAL) # check for stopping condition twice per second
 
 
-class FileCreatedEventHandler(FileSystemEventHandler, GuiObservable):
+class FileCreatedEventHandler(FileSystemEventHandler):
+
     def __init__(self, observer):
         super(FileSystemEventHandler, self).__init__()
-        super(GuiObservable, self).__init__()
+        self.new_image_added_handler = None
         self.observer = observer
         self.watched_dir = None
         self.flight = None
@@ -52,11 +53,14 @@ class FileCreatedEventHandler(FileSystemEventHandler, GuiObservable):
     def changeTargetFlight(self, new_flight):
         self.flight = new_flight
 
+    def setNewImageAddedHandler(self, handler):
+        self.new_image_added_handler = handler
+
     def on_created(self, event):
         path = event.src_path
 
         directory, fileName = GetDirectoryAndFilenameFromFullPath(path)
 
         if any(fileName.endswith(end) for end in ['.jpg', '.jpeg', '.JPG', '.JPEG']):
-            i = processNewImage(path, self.flight)
-            self.notifyObservers('IMAGE_ADDED', None, i)
+            self.new_image_added_handler(path)
+

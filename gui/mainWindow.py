@@ -9,20 +9,21 @@ from mapTab import MapTab
 from setupTab import SetupTab
 from taggingTab import TaggingTab
 from targetsTab import TargetsTab
-from observer import *
 from db.models import Image
 from utils.geolocate import geolocateLatLonFromPixelOnImage
 
 TAB_INDICES = {'TAB_SETUP': 0, 'TAB_TAGGING': 1, 'TAB_TARGETS': 2, 'TAB_MAP': 3}
 
 
-class MainWindow(QtWidgets.QMainWindow, Observable):
+class MainWindow(QtWidgets.QMainWindow):
 
+    # signals originating from this module
     image_added_signal = QtCore.pyqtSignal(Image)
+    reset_application_signal = QtCore.pyqtSignal()
+    new_image_discovered_by_watcher_signal = QtCore.pyqtSignal(str)
 
     def __init__(self):
         super(MainWindow, self).__init__()
-        Observable.__init__(self)
 
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
@@ -31,13 +32,11 @@ class MainWindow(QtWidgets.QMainWindow, Observable):
         self.ui.tabWidget.addTab(self.setupTab, "Setup")
 
         self.taggingTab = TaggingTab()
-        self.taggingTab.addObserver(self)
         self.taggingTab.viewer_single.viewport().installEventFilter(self)
         self.ui.tabWidget.addTab(self.taggingTab, "Tagging")
 
         self.targetsTab = TargetsTab()
         self.ui.tabWidget.addTab(self.targetsTab, "Targets")
-        self.taggingTab.addObserver(self.targetsTab)
 
         self.mapTab = MapTab(self)
         self.mapTab.viewer_map.viewport().installEventFilter(self)
@@ -65,14 +64,9 @@ class MainWindow(QtWidgets.QMainWindow, Observable):
 
         self.ui.tabWidget.currentChanged.connect(self.tabChangeHandler)
 
-        # self.image_added_signal = QtCore.pyqtSignal(Image)
-        self.image_added_signal.connect(self.taggingTab.processNewImage)
-        self.image_added_signal.connect(self.targetsTab.processNewImage)
-        self.image_added_signal.connect(self.mapTab.processNewImage)
-
-    def notify(self, event, id, data):
-        if event is "CURRENT_IMG_CHANGED":
-            self.ui.actionSaveImage.setEnabled(True)
+    @QtCore.pyqtSlot()
+    def processCurrentImageChanged(self):
+        self.ui.actionSaveImage.setEnabled(True)
 
     # handles events from widgets we have registered with
     # use installEventFilter() on a widget to register
@@ -117,7 +111,7 @@ class MainWindow(QtWidgets.QMainWindow, Observable):
                 self.ui.actionSaveImage.setEnabled(True)
 
     def resetGui(self):
-        self.notifyObservers("RESET", None, None)
+        self.reset_application_signal.emit()
 
     def resetTabs(self):
         for tabIndex in range(self.ui.tabWidget.count()): # iterate over each tab

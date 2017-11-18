@@ -1,7 +1,6 @@
 from PyQt5 import QtWidgets, QtGui, QtCore
 
 from ui.ui_targetsTab import Ui_TargetsTab
-from observer import Observer
 from db.dbHelper import *
 from db.models import Image
 from gui.tagListItem import TagListItem
@@ -14,10 +13,9 @@ from utils.geographicUtilities import getFrameBounds, Point
 
 TAB_INDICES = {'TAB_SETUP': 0, 'TAB_TAGGING': 1, 'TAB_TARGETS': 2, 'TAB_MAP': 3}
 
-class TargetsTab(QtWidgets.QWidget, Ui_TargetsTab, Observer):
+class TargetsTab(QtWidgets.QWidget, Ui_TargetsTab):
     def __init__(self):
         super(TargetsTab, self).__init__()
-        Observer.__init__(self)
 
         self.setupUi(self)
         self.connectButtons()
@@ -33,38 +31,46 @@ class TargetsTab(QtWidgets.QWidget, Ui_TargetsTab, Observer):
         self.viewer_targets._photo.setTabContextMenu(self.targets_tab_context_menu)
         self.button_exportTelemetry.clicked.connect(self.exportTelemetry)
 
-        self.viewer_targets.getPhotoItem().addObserver(self)
-
     @QtCore.pyqtSlot(Image)
-    def processNewImage(self, image):
+    def processImageAdded(self, image):
         self.addImageToUi(image)
 
-    def notify(self, event, id, data):
-        if event is "TAG_CREATED":
-            self.addTagToUi(data)
-        elif event is "TAG_EDITED":
-            edited_tag_list_item = self.tag_list_item_dict.get(data)
-            tag_name = '{}, {}'.format(data.type, data.subtype)
-            edited_tag_list_item.setText(tag_name)
-            self.list_tags.editItem(edited_tag_list_item)
-        elif event is "TAG_DELETED":
-            deleted_tag_list_item = self.tag_list_item_dict.get(data)
-            deleted_tag_list_item_row = self.list_tags.row(deleted_tag_list_item)
-            self.list_tags.takeItem(deleted_tag_list_item_row)
-            self.changeCurrentTagItemAfterTagDelete(deleted_tag_list_item_row)
-            del self.tag_list_item_dict[data]
-        elif event is "MARKER_CREATED":
-            marker_tag = data.tag
-            if self.current_tag == marker_tag:
-                self.filterImages(marker_tag)
-        elif event is "MARKER_DELETED":
-            marker_tag = data.tag
-            if self.current_tag == marker_tag:
-                self.filterImages(marker_tag)
-        elif event is "GO_TO_IMG_IN_TAGGING_TAB":
-            main_window = QtWidgets.QApplication.activeWindow()
-            main_window.taggingTab.goToImage(self.current_image)
-            main_window.ui.tabWidget.setCurrentIndex(TAB_INDICES['TAB_TAGGING'])
+    @QtCore.pyqtSlot(Tag)
+    def processTagCreated(self, new_tag):
+        self.addTagToUi(new_tag)
+
+    @QtCore.pyqtSlot(Tag)
+    def processTagEdited(self, edited_tag):
+        edited_tag_list_item = self.tag_list_item_dict.get(edited_tag)
+        tag_name = '{}, {}'.format(edited_tag.type, edited_tag.subtype)
+        edited_tag_list_item.setText(tag_name)
+        self.list_tags.editItem(edited_tag_list_item)
+
+    @QtCore.pyqtSlot(Tag)
+    def processTagDeleted(self, deleted_tag):
+        deleted_tag_list_item = self.tag_list_item_dict.get(deleted_tag)
+        deleted_tag_list_item_row = self.list_tags.row(deleted_tag_list_item)
+        self.list_tags.takeItem(deleted_tag_list_item_row)
+        self.changeCurrentTagItemAfterTagDelete(deleted_tag_list_item_row)
+        del self.tag_list_item_dict[deleted_tag]
+
+    @QtCore.pyqtSlot()
+    def processGoToImageInTaggingTab(self):
+        main_window = QtWidgets.QApplication.activeWindow()
+        main_window.taggingTab.goToImage(self.current_image)
+        main_window.ui.tabWidget.setCurrentIndex(TAB_INDICES['TAB_TAGGING'])
+
+    @QtCore.pyqtSlot(Tag)
+    def processMarkerCreated(self, new_marker):
+        markers_tag = new_marker.tag
+        if self.current_tag == markers_tag:
+            self.filterImages(markers_tag)
+
+    @QtCore.pyqtSlot(Tag)
+    def processMarkerDeleted(self, deleted_marker):
+        markers_tag = deleted_marker.tag
+        if self.current_tag == markers_tag:
+            self.filterImages(markers_tag)
 
     def changeCurrentTagItemAfterTagDelete(self, deleted_row_num):
         if deleted_row_num == self.list_tags.count():
